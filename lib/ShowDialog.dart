@@ -1,7 +1,6 @@
 // This program display the Dialog
 
 // Import Flutter Darts
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_redux/flutter_redux.dart';
@@ -126,7 +125,7 @@ class sd {
         showDialog(
             context: context,
             barrierDismissible: false,
-            builder: (context) => AlertDialog(
+            builder: (context) => SingleChildScrollView(child: AlertDialog(
                   title: Text(strTitle),
                   content: Row(
                     children: <Widget>[
@@ -139,7 +138,7 @@ class sd {
                           decoration: InputDecoration(
                             hintText: ls.gs('UserPW'),
                             contentPadding:
-                                EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                            EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(32.0)),
                           ),
@@ -198,7 +197,7 @@ class sd {
                       },
                     ),
                   ],
-                ));
+                ),),);
         break;
       default:
         break;
