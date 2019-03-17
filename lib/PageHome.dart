@@ -1,15 +1,10 @@
 // Import Flutter Darts
 import 'dart:io';
 import 'package:camera/camera.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_redux/flutter_redux.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image/image.dart' as ImagePlugin;
 import 'package:intl/intl.dart';
-import 'package:redux/redux.dart';
 import "package:threading/threading.dart";
 import 'package:video_player/video_player.dart';
 
@@ -20,7 +15,7 @@ import 'ScreenVariables.dart';
 import 'Utilities.dart';
 
 // Import Pages
-import 'BottomBar.dart';
+
 
 // In order to let the Video Controller can be disposed everytime leaving this page, e.g. Select video file by filePicker
 // Need to wrap this page by a stateless widget and use Redux to 'Refresh' this page
@@ -297,10 +292,46 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
     setState(() {});
   }
 
-
   Widget Body() {
     switch (gv.strHomeAction) {
+      case 'ShowImage':
+        Future.delayed(Duration(milliseconds: 10000), () async {
+          gv.strHomeAction = 'Default';
+          gv.storeHome.dispatch(Actions.Increment);
+        });
+        return Container(
+          padding: EdgeInsets.all(0.0),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Image.network(gv.strHomeImageUrl, fit:BoxFit.cover),
+                ),
+              ],
+            ),
+          ),
+        );
       case 'TTS':
+        return Container(
+          padding: EdgeInsets.all(10.0),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Text(' '),
+                Expanded(
+                  child: Text(gv.strHomeTTS,
+                      style:
+                      TextStyle(fontSize: sv.dblDefaultFontSize * 2)),
+                ),
+                Text(' '),
+              ],
+            ),
+          ),
+        );
         break;
       default:
         return Container(

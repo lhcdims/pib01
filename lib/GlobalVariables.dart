@@ -1,18 +1,15 @@
 // This program stores ALL global variables required by ALL darts
 
 // Import Flutter Darts
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:adhara_socket_io/adhara_socket_io.dart';
 import 'package:camera/camera.dart';
 import 'package:connectivity/connectivity.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:redux/redux.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:threading/threading.dart';
 
 // Import Self Darts
@@ -30,6 +27,8 @@ int reducerRedux(int intSomeInteger, dynamic action) {
   }
   return intSomeInteger;
 }
+enum TtsState { playing, stopped }
+
 
 class gv {
   // Important Vars
@@ -143,6 +142,28 @@ class gv {
       strPhotoDefPath = '';
       ut.funDebug('External Path Creation Error: ' + err.toString());
     }
+
+    //TTS Related
+    flutterTts.setStartHandler(() {
+      ttsState = TtsState.playing;
+      ut.funDebug('TTS Speak Start');
+    });
+
+    flutterTts.setCompletionHandler(() async{
+      ttsState = TtsState.stopped;
+      ut.funDebug('TTS Speak Stopped');
+      if (gstrCurPage == 'Home') {
+        Future.delayed(Duration(milliseconds: 3000), () async {
+          strHomeAction = 'Default';
+          storeHome.dispatch(Actions.Increment);
+        });
+      }
+    });
+
+    flutterTts.setErrorHandler((msg) {
+      ttsState = TtsState.stopped;
+      ut.funDebug('TTS Speak Error in setErrorHandler: ' + msg.toString());
+    });
   }
 
   static getString(strKey) {
@@ -184,7 +205,10 @@ class gv {
   static String strHomeCurrentPlayingVideoFilePath = '';
   static int intHomeVDDurationMS = 0;
   static String strHomeAction = 'Default';
-
+  static String strHomeTTS = 'Hello';
+  static FlutterTts flutterTts = new FlutterTts();
+  static TtsState ttsState = TtsState.stopped;
+  static String strHomeImageUrl = '';
 
   // Var For Login
   static var strLoginID = '';
@@ -458,6 +482,82 @@ class gv {
         intMainThreadTimer = intMainThreadTimerDefault;
       }
     });
+
+
+    socket.on('TtsStart', (data) async {
+      ut.funDebug('Tts Start receive from Server');
+      try {
+        if (gstrCurPage == 'Home') {
+          strHomeAction = 'TTS';
+          strHomeTTS = data[0];
+
+          ut.funDebug('Tts String from Server: ' + strHomeTTS);
+
+          // Stop Previous TTS
+          try {
+            if (ttsState == TtsState.playing) {
+              var result = await flutterTts.stop();
+              if (result == 1) {
+                ttsState = TtsState.stopped;
+              }
+            }
+          } catch (err) {
+          }
+
+          // Speak New TTS
+          try {
+            ut.funDebug('Before TTS Start in socket');
+            var result = await flutterTts.speak(strHomeTTS);;
+            if (result == 1) {
+              ttsState = TtsState.playing;
+            }
+            ut.funDebug('After TTS Start in socket');
+          } catch (err) {
+          }
+
+          // Dispatch
+          storeHome.dispatch(Actions.Increment);
+        }
+      } catch (err) {
+      }
+    });
+    socket.on('TtsStop', (data) async {
+      try {
+          // Stop Previous TTS
+          try {
+            if (ttsState == TtsState.playing) {
+              var result = await flutterTts.stop();
+              if (result == 1) {
+                ttsState = TtsState.stopped;
+              }
+            }
+          } catch (err) {
+
+          }
+      } catch (err) {
+      }
+    });
+
+
+    socket.on('ShowImage', (data) async {
+      ut.funDebug('ShowImage receive from Server');
+      try {
+        if (gstrCurPage == 'Home') {
+          strHomeAction = 'ShowImage';
+          strHomeImageUrl = data[0][1];
+
+          ut.funDebug('Image Url from Server: ' + strHomeImageUrl);
+
+          // Dispatch
+          storeHome.dispatch(Actions.Increment);
+        } else {
+          ut.funDebug('gstrCurPage: ' + gstrCurPage);
+        }
+      } catch (err) {
+        ut.funDebug(('ShowImage Error in socket: ' + err.toString()));
+      }
+    });
+
 
     // Connect Socket
     socket.connect();
