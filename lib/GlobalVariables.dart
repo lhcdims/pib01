@@ -207,7 +207,9 @@ class gv {
   static String strHomeImageUrl = '';
 
   static bool bolHomeTakePhotoStart = false;
-  static bool bolHomeTakePhotoEnd = false;
+  static bool bolHomeTakePhotoEnd = true;
+
+  static int intHomeCameraCountDown = 3;
 
   // Var For Login
   static var strLoginID = '';
@@ -265,7 +267,7 @@ class gv {
   static bool gbolSIOConnected = false;
   static SocketIO socket;
   static int intSocketTimeout = 10000;
-  static int intHBInterval = 1000;
+  static int intHBInterval = 500;
   static int intHBFinalInterval = 5000;
   static bool bolUploadingToSocketIOServer = false;
 
@@ -567,10 +569,12 @@ class gv {
 
           // Dispatch
           bolHomeStartAction = true;
+          timHomeStartAction = DateTime.now().millisecondsSinceEpoch;
           timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
 
           bolHomeTakePhotoStart = true;
           bolHomeTakePhotoEnd = false;
+          intHomeCameraCountDown = 3;
 
           storeHome.dispatch(Actions.Increment);
         } else {
@@ -605,6 +609,7 @@ class gv {
   // HeartBeat Timer
   static int timLastHBSent = DateTime.now().millisecondsSinceEpoch;
   static bool bolHomeStartAction = false;
+  static int timHomeStartAction = DateTime.now().millisecondsSinceEpoch;
   static int timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
   static int intHomeActionWaitToDefault = 10000;
   static void funTimerHeartBeat() async {
@@ -633,6 +638,15 @@ class gv {
         }
       } catch (err) {
         // ???
+      }
+
+      // Check Camera CountDown
+      if (!bolHomeTakePhotoEnd && gstrCurPage == 'Home') {
+        if (DateTime.now().millisecondsSinceEpoch - timHomeStartAction > 1000) {
+          timHomeStartAction = DateTime.now().millisecondsSinceEpoch;
+          gv.intHomeCameraCountDown -= 1;
+          storeHome.dispatch(Actions.Increment);
+        }
       }
     }
   } // End of funTimerHeartBeat()

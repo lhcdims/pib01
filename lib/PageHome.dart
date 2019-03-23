@@ -16,7 +16,6 @@ import 'Utilities.dart';
 
 // Import Pages
 
-
 // In order to let the Video Controller can be disposed everytime leaving this page, e.g. Select video file by filePicker
 // Need to wrap this page by a stateless widget and use Redux to 'Refresh' this page
 class ClsHomeBase extends StatelessWidget {
@@ -171,8 +170,8 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
 
     DateTime dtTimeStamp() => DateTime.now();
     String strTimeStamp = DateFormat('yyyyMMdd_kkmmss').format(dtTimeStamp());
-    gv.strHomeImageFileWithPath =
-        gv.strPhotoDefPath + '/' + strTimeStamp;
+    gv.strHomeImageFileWithPath = gv.strPhotoDefPath + '/' + strTimeStamp;
+    // gv.strHomeImageFileWithPath = gv.strPhotoDefPath + '/' + 'pib01Temp';
 
     try {
       try {
@@ -197,25 +196,25 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         }
         // Take Picture
         await ctlCamera.takePicture(
-          gv.strHomeImageFileWithPath + '.jpg',
+          gv.strHomeImageFileWithPath + '_01.jpg',
         );
 
-        // Resize Picture
-        ut.funDebug('Before Resize Picture in Camera Start');
-
-        ImagePlugin.Image imageTemp;
-        List<int> bytesTemp;
-        bytesTemp =
-            File(gv.strHomeImageFileWithPath + '.jpg').readAsBytesSync();
-        imageTemp = ImagePlugin.decodeImage(bytesTemp);
-
-        // Resize the image to a 120x? thumbnail (maintaining the aspect ratio).
-        ImagePlugin.Image imageThumb = ImagePlugin.copyResize(imageTemp, 240);
-
-        // Save the thumbnail as a JPG
-        await File(gv.strHomeImageFileWithPath + '.jpg')
-          ..writeAsBytesSync(ImagePlugin.encodeJpg(imageThumb));
-        ut.funDebug('After Resize Picture in Camera Start');
+//        // Resize Picture
+//        ut.funDebug('Before Resize Picture in Camera Start');
+//
+//        ImagePlugin.Image imageTemp;
+//        List<int> bytesTemp;
+//        bytesTemp =
+//            File(gv.strHomeImageFileWithPath + '_01.jpg').readAsBytesSync();
+//        imageTemp = ImagePlugin.decodeImage(bytesTemp);
+//
+//        // Resize the image to a 120x? thumbnail (maintaining the aspect ratio).
+//        ImagePlugin.Image imageThumb = ImagePlugin.copyResize(imageTemp, 240);
+//
+//        // Save the thumbnail as a JPG
+//        File(gv.strHomeImageFileWithPath + '_02.jpg')
+//          ..writeAsBytesSync(ImagePlugin.encodeJpg(imageThumb));
+//        ut.funDebug('After Resize Picture in Camera Start');
 
         try {
           ctlCamera?.dispose();
@@ -297,7 +296,7 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Expanded(
-                  child: Image.network(gv.strHomeImageUrl, fit:BoxFit.cover),
+                  child: Image.network(gv.strHomeImageUrl, fit: BoxFit.cover),
                 ),
               ],
             ),
@@ -318,7 +317,9 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   Expanded(
-                    child: Image.file(File(gv.strHomeImageFileWithPath + '.jpg'), fit:BoxFit.cover),
+                    child: Image.file(
+                        File(gv.strHomeImageFileWithPath + '_01.jpg'),
+                        fit: BoxFit.cover),
                   ),
                 ],
               ),
@@ -328,10 +329,20 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
           if (!ctlCamera.value.isInitialized) {
             return Container();
           }
-          return AspectRatio(
-              aspectRatio:
-              ctlCamera.value.aspectRatio,
-              child: CameraPreview(ctlCamera));
+          return Stack(
+            children: <Widget>[
+              RotatedBox(
+                quarterTurns: 3,
+                child: AspectRatio(
+                  aspectRatio: ctlCamera.value.aspectRatio,
+                  child: CameraPreview(ctlCamera),
+                ),
+              ),
+              Center(child: Text(
+              (gv.intHomeCameraCountDown > 0) ? gv.intHomeCameraCountDown.toString() : '',
+              style: TextStyle(fontSize: sv.dblDefaultFontSize * 3, color: Colors.red, fontWeight: FontWeight.bold)))
+            ],
+          );
         }
         break;
       case 'TTS':
@@ -344,10 +355,11 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
               children: <Widget>[
                 Text(' '),
                 Expanded(
-                  child: SingleChildScrollView(child: Text(gv.strHomeTTS,
-                      style:
-                      TextStyle(fontSize: sv.dblDefaultFontSize * 2)),
-                ),),
+                  child: SingleChildScrollView(
+                    child: Text(gv.strHomeTTS,
+                        style: TextStyle(fontSize: sv.dblDefaultFontSize * 2)),
+                  ),
+                ),
                 Text(' '),
               ],
             ),
