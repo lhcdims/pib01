@@ -167,26 +167,12 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
 
   // Function Start Camera
   void funCameraStart() async {
-    if (MediaQuery.of(context).orientation.toString() == Orientation.portrait) {
-      ut.funDebug('Camera Orientation: Portrait');
-    } else {
-      ut.funDebug('Camera Orientation: Landscape');
-    }
-
     // Declare File Name
-    await Directory(gv.strMoviePath + '/' + gv.strLoginID)
-        .create(recursive: true);
-    await Directory(gv.strImagePath + '/' + gv.strLoginID)
-        .create(recursive: true);
 
     DateTime dtTimeStamp() => DateTime.now();
     String strTimeStamp = DateFormat('yyyyMMdd_kkmmss').format(dtTimeStamp());
-    String strMovieFile =
-        gv.strMoviePath + '/' + gv.strLoginID + '/' + strTimeStamp + '.mp4';
     gv.strHomeImageFileWithPath =
-        gv.strImagePath + '/' + gv.strLoginID + '/' + strTimeStamp;
-    gv.strHomeMovieFileNoPath = strTimeStamp + '.mp4';
-    ut.funDebug('File Path: ' + strMovieFile);
+        gv.strPhotoDefPath + '/' + strTimeStamp;
 
     try {
       try {
@@ -195,10 +181,11 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         ctlCamera = CameraController(gv.cameras[1], ResolutionPreset.high);
         ut.funDebug('funCameraStart 2');
         await ctlCamera.initialize();
+        setState(() {});
         // Sleep 500 milliseconds otherwise captured image is dark
         ut.funDebug('funCameraStart 3');
         try {
-          await Thread.sleep(500);
+          await Thread.sleep(3000);
         } catch (err) {
           ut.funDebug(
               'Thread Sleep Error in funCamera Start: ' + err.toString());
@@ -210,7 +197,7 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         }
         // Take Picture
         await ctlCamera.takePicture(
-          gv.strHomeImageFileWithPath + '_01.jpg',
+          gv.strHomeImageFileWithPath + '.jpg',
         );
 
         // Resize Picture
@@ -219,20 +206,23 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         ImagePlugin.Image imageTemp;
         List<int> bytesTemp;
         bytesTemp =
-            File(gv.strHomeImageFileWithPath + '_01.jpg').readAsBytesSync();
+            File(gv.strHomeImageFileWithPath + '.jpg').readAsBytesSync();
         imageTemp = ImagePlugin.decodeImage(bytesTemp);
 
         // Resize the image to a 120x? thumbnail (maintaining the aspect ratio).
         ImagePlugin.Image imageThumb = ImagePlugin.copyResize(imageTemp, 240);
 
         // Save the thumbnail as a JPG
-        await File(gv.strHomeImageFileWithPath + '_01.jpg')
+        await File(gv.strHomeImageFileWithPath + '.jpg')
           ..writeAsBytesSync(ImagePlugin.encodeJpg(imageThumb));
         ut.funDebug('After Resize Picture in Camera Start');
 
-        ctlCamera.startVideoRecording(strMovieFile);
-        gv.timHomeCameraStart = DateTime.now().millisecondsSinceEpoch;
-        gv.bolHomeRecording = true;
+        try {
+          ctlCamera?.dispose();
+        } catch (err) {}
+
+        gv.bolHomeTakePhotoEnd = true;
+        setState(() {});
       } catch (err) {
         ut.showToast('2:' + ls.gs('SystemErrorOpenAgain'), true);
         ut.funDebug("Camera Init Error in funCameraStart: " + err.toString());
@@ -289,16 +279,16 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
   }
 
   void funInitFirstTime() async {
+    gv.bolHomeTakePhotoStart = false;
+
+    funCameraStart();
     setState(() {});
   }
 
   Widget Body() {
     switch (gv.strHomeAction) {
       case 'ShowImage':
-        Future.delayed(Duration(milliseconds: 10000), () async {
-          gv.strHomeAction = 'Default';
-          gv.storeHome.dispatch(Actions.Increment);
-        });
+        gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
         return Container(
           padding: EdgeInsets.all(0.0),
           child: Center(
@@ -313,6 +303,37 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
             ),
           ),
         );
+        break;
+      case 'TakePhoto':
+        if (gv.bolHomeTakePhotoStart) {
+          funInitFirstTime();
+        }
+        gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+        if (gv.bolHomeTakePhotoEnd) {
+          return Container(
+            padding: EdgeInsets.all(0.0),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: Image.file(File(gv.strHomeImageFileWithPath + '.jpg'), fit:BoxFit.cover),
+                  ),
+                ],
+              ),
+            ),
+          );
+        } else {
+          if (!ctlCamera.value.isInitialized) {
+            return Container();
+          }
+          return AspectRatio(
+              aspectRatio:
+              ctlCamera.value.aspectRatio,
+              child: CameraPreview(ctlCamera));
+        }
+        break;
       case 'TTS':
         return Container(
           padding: EdgeInsets.all(10.0),
@@ -323,10 +344,10 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
               children: <Widget>[
                 Text(' '),
                 Expanded(
-                  child: Text(gv.strHomeTTS,
+                  child: SingleChildScrollView(child: Text(gv.strHomeTTS,
                       style:
                       TextStyle(fontSize: sv.dblDefaultFontSize * 2)),
-                ),
+                ),),
                 Text(' '),
               ],
             ),

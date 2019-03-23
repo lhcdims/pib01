@@ -151,17 +151,13 @@ class gv {
 
     flutterTts.setCompletionHandler(() async{
       ttsState = TtsState.stopped;
+      gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
       ut.funDebug('TTS Speak Stopped');
-      if (gstrCurPage == 'Home') {
-        Future.delayed(Duration(milliseconds: 3000), () async {
-          strHomeAction = 'Default';
-          storeHome.dispatch(Actions.Increment);
-        });
-      }
     });
 
     flutterTts.setErrorHandler((msg) {
       ttsState = TtsState.stopped;
+      gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
       ut.funDebug('TTS Speak Error in setErrorHandler: ' + msg.toString());
     });
   }
@@ -209,6 +205,9 @@ class gv {
   static FlutterTts flutterTts = new FlutterTts();
   static TtsState ttsState = TtsState.stopped;
   static String strHomeImageUrl = '';
+
+  static bool bolHomeTakePhotoStart = false;
+  static bool bolHomeTakePhotoEnd = false;
 
   // Var For Login
   static var strLoginID = '';
@@ -266,7 +265,8 @@ class gv {
   static bool gbolSIOConnected = false;
   static SocketIO socket;
   static int intSocketTimeout = 10000;
-  static int intHBInterval = 5000;
+  static int intHBInterval = 1000;
+  static int intHBFinalInterval = 5000;
   static bool bolUploadingToSocketIOServer = false;
 
   static initSocket() async {
@@ -516,39 +516,33 @@ class gv {
           }
 
           // Dispatch
+          bolHomeStartAction = true;
+          timHomeFinishAction = DateTime.now().millisecondsSinceEpoch + 60000;
           storeHome.dispatch(Actions.Increment);
         }
       } catch (err) {
       }
     });
     socket.on('TtsStop', (data) async {
-      try {
-          // Stop Previous TTS
-          try {
-            if (ttsState == TtsState.playing) {
-              var result = await flutterTts.stop();
-              if (result == 1) {
-                ttsState = TtsState.stopped;
-              }
-            }
-          } catch (err) {
-
-          }
-      } catch (err) {
-      }
+      funStopTTS();
     });
-
 
     socket.on('ShowImage', (data) async {
       ut.funDebug('ShowImage receive from Server');
       try {
         if (gstrCurPage == 'Home') {
+          if (strHomeAction == 'TTS') {
+            funStopTTS();
+          }
+
           strHomeAction = 'ShowImage';
           strHomeImageUrl = data[0][1];
 
           ut.funDebug('Image Url from Server: ' + strHomeImageUrl);
 
           // Dispatch
+          bolHomeStartAction = true;
+          timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
           storeHome.dispatch(Actions.Increment);
         } else {
           ut.funDebug('gstrCurPage: ' + gstrCurPage);
@@ -558,6 +552,34 @@ class gv {
       }
     });
 
+    socket.on('TakePhoto', (data) async {
+      ut.funDebug('TakePhoto receive from Server');
+      try {
+        if (gstrCurPage == 'Home') {
+          if (strHomeAction == 'TTS') {
+            funStopTTS();
+          }
+
+          strHomeAction = 'TakePhoto';
+          // strHomeImageUrl = data[0][1];
+
+          // ut.funDebug('Image Url from Server: ' + strHomeImageUrl);
+
+          // Dispatch
+          bolHomeStartAction = true;
+          timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+
+          bolHomeTakePhotoStart = true;
+          bolHomeTakePhotoEnd = false;
+
+          storeHome.dispatch(Actions.Increment);
+        } else {
+          ut.funDebug('gstrCurPage: ' + gstrCurPage);
+        }
+      } catch (err) {
+        ut.funDebug(('TakePhoto Error in socket: ' + err.toString()));
+      }
+    });
 
     // Connect Socket
     socket.connect();
@@ -566,14 +588,51 @@ class gv {
     var threadHB = new Thread(funTimerHeartBeat);
     threadHB.start();
   } // End of initSocket()
+  static void funStopTTS() async {
+    try {
+      if (ttsState == TtsState.playing) {
+        var result = await flutterTts.stop();
+        gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+        if (result == 1) {
+          ttsState = TtsState.stopped;
+        }
+      }
+    } catch (err) {
+    }
+  }
+
 
   // HeartBeat Timer
+  static int timLastHBSent = DateTime.now().millisecondsSinceEpoch;
+  static bool bolHomeStartAction = false;
+  static int timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+  static int intHomeActionWaitToDefault = 10000;
   static void funTimerHeartBeat() async {
     while (true) {
+      // Sleep for 1 second
       await Thread.sleep(intHBInterval);
-      if (socket != null) {
-        ut.funDebug('Sending HB...' + DateTime.now().toString());
-        socket.emit('HB', [strLoginID]);
+
+      // Check HB
+      if (DateTime.now().millisecondsSinceEpoch - timLastHBSent > intHBFinalInterval) {
+        if (socket != null) {
+          ut.funDebug('Sending HB...' + DateTime.now().toString());
+          socket.emit('HB', [strLoginID]);
+        }
+      }
+
+      // Check should show eye
+      try {
+        if (bolHomeStartAction) {
+          if (DateTime.now().millisecondsSinceEpoch - timHomeFinishAction > intHomeActionWaitToDefault) {
+            bolHomeStartAction = false;
+            strHomeAction = 'Default';
+            if (gstrCurPage == 'Home') {
+              storeHome.dispatch(Actions.Increment);
+            }
+          }
+        }
+      } catch (err) {
+        // ???
       }
     }
   } // End of funTimerHeartBeat()
