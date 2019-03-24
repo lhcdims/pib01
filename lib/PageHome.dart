@@ -1,4 +1,5 @@
 // Import Flutter Darts
+import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
@@ -200,21 +201,21 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         );
 
 //        // Resize Picture
-//        ut.funDebug('Before Resize Picture in Camera Start');
-//
-//        ImagePlugin.Image imageTemp;
-//        List<int> bytesTemp;
-//        bytesTemp =
-//            File(gv.strHomeImageFileWithPath + '_01.jpg').readAsBytesSync();
-//        imageTemp = ImagePlugin.decodeImage(bytesTemp);
-//
-//        // Resize the image to a 120x? thumbnail (maintaining the aspect ratio).
-//        ImagePlugin.Image imageThumb = ImagePlugin.copyResize(imageTemp, 240);
-//
-//        // Save the thumbnail as a JPG
-//        File(gv.strHomeImageFileWithPath + '_02.jpg')
-//          ..writeAsBytesSync(ImagePlugin.encodeJpg(imageThumb));
-//        ut.funDebug('After Resize Picture in Camera Start');
+////        ut.funDebug('Before Resize Picture in Camera Start');
+////
+////        ImagePlugin.Image imageTemp;
+////        List<int> bytesTemp;
+////        bytesTemp =
+////            File(gv.strHomeImageFileWithPath + '_01.jpg').readAsBytesSync();
+////        imageTemp = ImagePlugin.decodeImage(bytesTemp);
+////
+////        // Resize the image to a 120x? thumbnail (maintaining the aspect ratio).
+////        ImagePlugin.Image imageThumb = ImagePlugin.copyResize(imageTemp, 240);
+////
+////        // Save the thumbnail as a JPG
+////        File(gv.strHomeImageFileWithPath + '_02.jpg')
+////          ..writeAsBytesSync(ImagePlugin.encodeJpg(imageThumb));
+////        ut.funDebug('After Resize Picture in Camera Start');
 
         try {
           ctlCamera?.dispose();
@@ -222,6 +223,17 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
 
         gv.bolHomeTakePhotoEnd = true;
         setState(() {});
+
+        if (gv.strHomeAction == 'TakePhotoAndClassify') {
+          // Read Image in b64 and send to socket.io server
+          String base64Image1 = '';
+          String strImage1 = gv.strHomeImageFileWithPath + '_01.jpg';
+          var filImage1 = new File(strImage1);
+          List<int> imageBytes1 = filImage1.readAsBytesSync();
+          // base64Image1 = 'data:image/jpg;base64,' + base64Encode(imageBytes1);
+          base64Image1 = base64Encode(imageBytes1);
+          gv.socket.emit('PIBRequestPhotoClassify', [base64Image1]);
+        }
       } catch (err) {
         ut.showToast('2:' + ls.gs('SystemErrorOpenAgain'), true);
         ut.funDebug("Camera Init Error in funCameraStart: " + err.toString());
@@ -284,6 +296,40 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
     setState(() {});
   }
 
+  Widget widTakePhoto1(context) {
+    return Container(
+      padding: EdgeInsets.all(0.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Image.file(
+                  File(gv.strHomeImageFileWithPath + '_01.jpg'),
+                  fit: BoxFit.cover),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  Widget widTakePhoto2(context) {
+    return Stack(
+      children: <Widget>[
+        RotatedBox(
+          quarterTurns: 3,
+          child: AspectRatio(
+            aspectRatio: ctlCamera.value.aspectRatio,
+            child: CameraPreview(ctlCamera),
+          ),
+        ),
+        Center(child: Text(
+            (gv.intHomeCameraCountDown > 0) ? gv.intHomeCameraCountDown.toString() : '',
+            style: TextStyle(fontSize: sv.dblDefaultFontSize * 3, color: Colors.red, fontWeight: FontWeight.bold)))
+      ],
+    );
+  }
   Widget Body() {
     switch (gv.strHomeAction) {
       case 'ShowImage':
@@ -309,40 +355,26 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         }
         gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
         if (gv.bolHomeTakePhotoEnd) {
-          return Container(
-            padding: EdgeInsets.all(0.0),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  Expanded(
-                    child: Image.file(
-                        File(gv.strHomeImageFileWithPath + '_01.jpg'),
-                        fit: BoxFit.cover),
-                  ),
-                ],
-              ),
-            ),
-          );
+          return widTakePhoto1(context);
         } else {
           if (!ctlCamera.value.isInitialized) {
             return Container();
           }
-          return Stack(
-            children: <Widget>[
-              RotatedBox(
-                quarterTurns: 3,
-                child: AspectRatio(
-                  aspectRatio: ctlCamera.value.aspectRatio,
-                  child: CameraPreview(ctlCamera),
-                ),
-              ),
-              Center(child: Text(
-              (gv.intHomeCameraCountDown > 0) ? gv.intHomeCameraCountDown.toString() : '',
-              style: TextStyle(fontSize: sv.dblDefaultFontSize * 3, color: Colors.red, fontWeight: FontWeight.bold)))
-            ],
-          );
+          return widTakePhoto2(context);
+        }
+        break;
+      case 'TakePhotoAndClassify':
+        if (gv.bolHomeTakePhotoStart) {
+          funInitFirstTime();
+        }
+        gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+        if (gv.bolHomeTakePhotoEnd) {
+          return widTakePhoto1(context);
+        } else {
+          if (!ctlCamera.value.isInitialized) {
+            return Container();
+          }
+          return widTakePhoto2(context);
         }
         break;
       case 'TTS':

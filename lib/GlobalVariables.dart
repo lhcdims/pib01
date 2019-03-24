@@ -584,6 +584,36 @@ class gv {
         ut.funDebug(('TakePhoto Error in socket: ' + err.toString()));
       }
     });
+    socket.on('TakePhotoAndClassify', (data) async {
+      ut.funDebug('TakePhotoAndClassify receive from Server');
+      try {
+        if (gstrCurPage == 'Home') {
+          if (strHomeAction == 'TTS') {
+            funStopTTS();
+          }
+
+          strHomeAction = 'TakePhotoAndClassify';
+          // strHomeImageUrl = data[0][1];
+
+          // ut.funDebug('Image Url from Server: ' + strHomeImageUrl);
+
+          // Dispatch
+          bolHomeStartAction = true;
+          timHomeStartAction = DateTime.now().millisecondsSinceEpoch;
+          timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+
+          bolHomeTakePhotoStart = true;
+          bolHomeTakePhotoEnd = false;
+          intHomeCameraCountDown = 3;
+
+          storeHome.dispatch(Actions.Increment);
+        } else {
+          ut.funDebug('gstrCurPage: ' + gstrCurPage);
+        }
+      } catch (err) {
+        ut.funDebug(('TakePhotoAndClassify Error in socket: ' + err.toString()));
+      }
+    });
 
     // Connect Socket
     socket.connect();
