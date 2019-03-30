@@ -30,6 +30,7 @@ dependencies:
   fluttertoast:
   flutter_redux:
   flutter_tts:
+  flutter_webrtc:
   font_awesome_flutter:
   image:
   modal_progress_hud:

@@ -4,10 +4,13 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as ImagePlugin;
+import 'package:image/image.dart' as ImagePlugin; // For Resize Picture
 import 'package:intl/intl.dart';
 import "package:threading/threading.dart";
 import 'package:video_player/video_player.dart';
+import 'signaling.dart';
+import 'package:flutter_webrtc/webrtc.dart';
+
 
 // Import Self Darts
 import 'GlobalVariables.dart';
@@ -39,6 +42,11 @@ class ClsHome extends StatefulWidget {
 class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
   AppLifecycleState _lastLifecycleState;
 
+  // Declare WebRtc
+  Signaling _signaling;
+  RTCVideoRenderer _localRenderer = new RTCVideoRenderer();
+  RTCVideoRenderer _remoteRenderer = new RTCVideoRenderer();
+
   // Declare Video
   VideoPlayerController ctlVideo;
   VoidCallback vcbVideo;
@@ -62,6 +70,105 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         intCountState.toString());
   }
 
+  initRenderers() async {
+    await _localRenderer.initialize();
+    await _remoteRenderer.initialize();
+  }
+
+  void _connect() async {
+    if (_signaling == null) {
+      _signaling = new Signaling(gv.strWebRtcIP, gv.strWebRtcDisplayName)
+        ..connect();
+
+      _signaling.onStateChange = (SignalingState state) {
+        switch (state) {
+          case SignalingState.CallStateNew:
+            this.setState(() {
+              gv.bolWebRtcInCalling = true;
+            });
+            break;
+          case SignalingState.CallStateBye:
+            this.setState(() {
+              _localRenderer.srcObject = null;
+              _remoteRenderer.srcObject = null;
+              gv.bolWebRtcInCalling = false;
+            });
+            break;
+          case SignalingState.CallStateInvite:
+            break;
+          case SignalingState.CallStateConnected:
+            break;
+          case SignalingState.CallStateRinging:
+            break;
+          case SignalingState.ConnectionClosed:
+            break;
+          case SignalingState.ConnectionError:
+            break;
+          case SignalingState.ConnectionOpen:
+            break;
+          default:
+            break;
+        }
+        ut.funDebug('SignalingState.value: ' + SignalingState.values.toString());
+      };
+
+
+      _signaling.onPeersUpdate = ((event) {
+        this.setState(() {
+          gv.strWebRtcSelfID = event['self'];
+          gv.lstWebRtcPeers = event['peers'];
+          ut.funDebug('Self ID Updated onPeersUpdate: ' + gv.strWebRtcSelfID);
+          ut.funDebug('Peers Updated onPeersUpdate: ' + gv.lstWebRtcPeers.toString());
+        });
+      });
+
+      _signaling.onLocalStream = ((stream) {
+        _localRenderer.srcObject = stream;
+      });
+
+      _signaling.onAddRemoteStream = ((stream) {
+        _remoteRenderer.srcObject = stream;
+      });
+
+      _signaling.onRemoveRemoteStream = ((stream) {
+        _remoteRenderer.srcObject = null;
+      });
+    }
+  }
+
+  _hangUp() {
+    if (_signaling != null) {
+      _signaling.bye();
+    }
+  }
+
+
+  @override
+  deactivate() {
+    super.deactivate();
+
+    funDisposeWebRTC();
+  }
+
+  void funDisposeWebRTC() {
+    try {
+      if (_signaling != null) _signaling.close();
+    } catch (err) {
+      ut.funDebug('_signaling.close() Error: ' + err.toString());
+    }
+    try {
+      _localRenderer.dispose();
+    } catch (err) {
+      ut.funDebug('_localRenderer.dispose() Error: ' + err.toString());
+    }
+    try {
+      _remoteRenderer.dispose();
+    } catch (err) {
+      ut.funDebug('_remoteRenderer.dispose(); Error: ' + err.toString());
+    }
+    gv.strWebRtcSelfID = '';
+  }
+
   @override
   void dispose() async {
     super.dispose();
@@ -71,7 +178,6 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
 
     try {
       // ctlCamera?.dispose();
-      funCameraStop();
     } catch (err) {
       ut.funDebug('Camera Dispose Error in dispose(): ' + err.toString());
     }
@@ -114,11 +220,11 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
       } catch (err) {
         ut.funDebug('Video Pause Error in didChange paused: ' + err.toString());
       }
-      try {
-        funCameraStop();
-      } catch (err) {
-        ut.funDebug('Stop Camera Error in Pause: ' + err.toString());
-      }
+//      try {
+//        funDisposeWebRTC();
+//      } catch (err) {
+//        //
+//      }
     } else if (_lastLifecycleState.toString() == 'AppLifecycleState.resumed') {
       try {
         if (ctlVideo.value.isPlaying) {
@@ -135,6 +241,15 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         ut.funDebug(
             'Video Pause Error in didChange resumed: ' + err.toString());
       }
+//      try {
+//        // WebRTC Related
+//        if (gv.bolWebRtcShouldInit) {
+//          initRenderers();
+//          _connect();
+//        }
+//      } catch (err) {
+//        ut.funDebug('WebRTC Init Again Error: ' + err.toString());
+//      }
     }
   }
 
@@ -181,19 +296,19 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         ctlCamera = CameraController(gv.cameras[1], ResolutionPreset.high);
         ut.funDebug('funCameraStart 2');
         await ctlCamera.initialize();
+        await Thread.sleep(500);
         setState(() {});
         // Sleep 500 milliseconds otherwise captured image is dark
         ut.funDebug('funCameraStart 3');
+        if (!mounted) {
+          ut.showToast('1:' + ls.gs('SystemErrorOpenAgain'), true);
+          return;
+        }
         try {
           await Thread.sleep(3000);
         } catch (err) {
           ut.funDebug(
               'Thread Sleep Error in funCamera Start: ' + err.toString());
-        }
-        ;
-        if (!mounted) {
-          ut.showToast('1:' + ls.gs('SystemErrorOpenAgain'), true);
-          return;
         }
         // Take Picture
         await ctlCamera.takePicture(
@@ -222,7 +337,6 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         } catch (err) {}
 
         gv.bolHomeTakePhotoEnd = true;
-        setState(() {});
 
         if (gv.strHomeAction == 'TakePhotoAndClassify') {
           // Read Image in b64 and send to socket.io server
@@ -234,69 +348,42 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
           base64Image1 = base64Encode(imageBytes1);
           gv.socket.emit('PIBRequestPhotoClassify', [base64Image1]);
         }
+
+        setState(() {});
+//        gv.bolWebRtcShouldInit = true;
+//        gv.storeMain.dispatch(Actions.Increment);
       } catch (err) {
         ut.showToast('2:' + ls.gs('SystemErrorOpenAgain'), true);
         ut.funDebug("Camera Init Error in funCameraStart: " + err.toString());
+//        gv.bolWebRtcShouldInit = true;
+//        gv.storeMain.dispatch(Actions.Increment);
       }
     } catch (err) {
       ut.funDebug('funCamera Start Error 1: ' + err.toString());
+//      gv.bolWebRtcShouldInit = true;
+//      gv.storeMain.dispatch(Actions.Increment);
     }
   }
 
-  // Function Stop Camera
-  void funCameraStop() async {
-    ut.funDebug('funCamera Stop Begin');
-    if (gv.bolHomeRecording) {
-      gv.bolHomeRecording = false;
-      int timHomeVideoEnd = DateTime.now().millisecondsSinceEpoch;
-      int intVideoDuration =
-          ((timHomeVideoEnd - gv.timHomeCameraStart) / 1000).toInt();
-      if (intVideoDuration < 0) {
-        // Don't cheat ME!!!
-        intVideoDuration = 7200;
-      }
-      try {
-        await ctlCamera.stopVideoRecording();
-      } catch (err) {
-        // ut.showToast('5:' + ls.gs('SystemErrorOpenAgain'), true);
-      }
-      try {
-        await ctlCamera.takePicture(gv.strHomeImageFileWithPath + '_02.jpg');
-
-        // Resize Picture
-        ut.funDebug('Before Resize Picture in Camera Stop');
-
-        ImagePlugin.Image imageTemp;
-        List<int> bytesTemp;
-        bytesTemp =
-            File(gv.strHomeImageFileWithPath + '_02.jpg').readAsBytesSync();
-        imageTemp = ImagePlugin.decodeImage(bytesTemp);
-
-        // Resize the image to a 120x? thumbnail (maintaining the aspect ratio).
-        ImagePlugin.Image imageThumb = ImagePlugin.copyResize(imageTemp, 240);
-
-        // Save the thumbnail as a JPG
-        await File(gv.strHomeImageFileWithPath + '_02.jpg')
-          ..writeAsBytesSync(ImagePlugin.encodeJpg(imageThumb));
-        ut.funDebug('After Resize Picture in Camera Stop');
-      } catch (err) {
-        // ut.showToast('5:' + ls.gs('SystemErrorOpenAgain'), true);
-      }
-      try {
-        ctlCamera?.dispose();
-      } catch (err) {}
-    }
-    ut.funDebug('funCameraStop End');
-  }
 
   void funInitFirstTime() async {
-    gv.bolHomeTakePhotoStart = false;
+    // WebRTC Related
+//    if (gv.bolWebRtcShouldInit) {
+      if (gv.strWebRtcSelfID == '') {
+        initRenderers();
+        _connect();
+      }
+//    }
 
-    funCameraStart();
-    setState(() {});
+//    if (gv.strHomeAction == 'TakePhoto' || gv.strHomeAction == 'TakePhotoAndClassify') {
+//      gv.bolHomeTakePhotoStart = false;
+//      setState(() {});
+//      funCameraStart();
+//    }
   }
 
   Widget widTakePhoto1(context) {
+    ut.funDebug('widTakePhoto1 Called');
     return Container(
       padding: EdgeInsets.all(0.0),
       child: Center(
@@ -315,15 +402,16 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
     );
   }
   Widget widTakePhoto2(context) {
+    ut.funDebug('widTakePhoto2 Called');
     return Stack(
       children: <Widget>[
-        RotatedBox(
+        Center(child: RotatedBox(
           quarterTurns: 3,
           child: AspectRatio(
             aspectRatio: ctlCamera.value.aspectRatio,
             child: CameraPreview(ctlCamera),
           ),
-        ),
+        ),),
         Center(child: Text(
             (gv.intHomeCameraCountDown > 0) ? gv.intHomeCameraCountDown.toString() : '',
             style: TextStyle(fontSize: sv.dblDefaultFontSize * 3, color: Colors.red, fontWeight: FontWeight.bold)))
@@ -331,6 +419,7 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
     );
   }
   Widget Body() {
+    ut.funDebug('Page Home Body 1');
     switch (gv.strHomeAction) {
       case 'ShowImage':
         gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
@@ -350,28 +439,45 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         );
         break;
       case 'TakePhoto':
+        ut.funDebug('Page Home Body 2');
         if (gv.bolHomeTakePhotoStart) {
-          funInitFirstTime();
+//          funInitFirstTime();
+          ut.funDebug('Page Home Body 3');
+          gv.bolHomeTakePhotoStart = false;
+          funCameraStart();
+          ut.funDebug('Page Home Body 4');
+          setState(() {});
+          ut.funDebug('Page Home Body 5');
         }
+        ut.funDebug('Page Home Body 6');
         gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
         if (gv.bolHomeTakePhotoEnd) {
+          ut.funDebug('Page Home Body 7');
           return widTakePhoto1(context);
         } else {
+          ut.funDebug('Page Home Body 8');
           if (!ctlCamera.value.isInitialized) {
+            ut.funDebug('Page Home Body 9');
+            ut.funDebug('Before Return Container() in TakePhoto');
             return Container();
           }
+          ut.funDebug('Page Home Body 10');
           return widTakePhoto2(context);
         }
         break;
       case 'TakePhotoAndClassify':
         if (gv.bolHomeTakePhotoStart) {
-          funInitFirstTime();
+//          funInitFirstTime();
+          gv.bolHomeTakePhotoStart = false;
+          funCameraStart();
+          setState(() {});
         }
         gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
         if (gv.bolHomeTakePhotoEnd) {
           return widTakePhoto1(context);
         } else {
           if (!ctlCamera.value.isInitialized) {
+            ut.funDebug('Before Return Container() in TakePhotoAndClassify');
             return Container();
           }
           return widTakePhoto2(context);

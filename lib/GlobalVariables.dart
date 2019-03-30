@@ -151,7 +151,9 @@ class gv {
 
     flutterTts.setCompletionHandler(() async{
       ttsState = TtsState.stopped;
-      gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+      timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
+//      bolWebRtcShouldInit = true;
+//      storeMain.dispatch(Actions.Increment);
       ut.funDebug('TTS Speak Stopped');
     });
 
@@ -270,6 +272,14 @@ class gv {
   static int intHBInterval = 500;
   static int intHBFinalInterval = 5000;
   static bool bolUploadingToSocketIOServer = false;
+
+  // WebRTC Related
+  static String strWebRtcIP = '192.168.123.5';
+  static String strWebRtcSelfID = '';
+  static bool bolWebRtcInCalling = false;
+  static String strWebRtcDisplayName = 'BigAIBot';
+  static List<dynamic> lstWebRtcPeers;
+//  static bool bolWebRtcShouldInit = true;
 
   static initSocket() async {
     if (!gbolSIOConnected) {
@@ -506,6 +516,10 @@ class gv {
           } catch (err) {
           }
 
+//          bolWebRtcShouldInit = false;
+          bolHomeStartAction = true;
+          timHomeFinishAction = DateTime.now().millisecondsSinceEpoch + 60000;
+
           // Speak New TTS
           try {
             ut.funDebug('Before TTS Start in socket');
@@ -518,8 +532,6 @@ class gv {
           }
 
           // Dispatch
-          bolHomeStartAction = true;
-          timHomeFinishAction = DateTime.now().millisecondsSinceEpoch + 60000;
           storeHome.dispatch(Actions.Increment);
         }
       } catch (err) {
@@ -576,7 +588,15 @@ class gv {
           bolHomeTakePhotoEnd = false;
           intHomeCameraCountDown = 3;
 
+          // Take Photo Should not init WebRTC
+//          bolWebRtcShouldInit = false;
+
+          // storeHome OK
           storeHome.dispatch(Actions.Increment);
+
+          // storeMain NOT OK
+//          storeMain.dispatch(Actions.Increment);
+
         } else {
           ut.funDebug('gstrCurPage: ' + gstrCurPage);
         }
@@ -605,6 +625,10 @@ class gv {
           bolHomeTakePhotoStart = true;
           bolHomeTakePhotoEnd = false;
           intHomeCameraCountDown = 3;
+
+//          storeHome.dispatch(Actions.Increment);
+          // Take Photo Should not init WebRTC
+//          bolWebRtcShouldInit = false;
 
           storeHome.dispatch(Actions.Increment);
         } else {
@@ -651,7 +675,9 @@ class gv {
       if (DateTime.now().millisecondsSinceEpoch - timLastHBSent > intHBFinalInterval) {
         if (socket != null) {
           ut.funDebug('Sending HB...' + DateTime.now().toString());
+          ut.funDebug('WebRTC Self ID: ' + strWebRtcSelfID);
           socket.emit('HB', [strLoginID]);
+          timLastHBSent = DateTime.now().millisecondsSinceEpoch;
         }
       }
 
@@ -663,6 +689,7 @@ class gv {
             strHomeAction = 'Default';
             if (gstrCurPage == 'Home') {
               storeHome.dispatch(Actions.Increment);
+              ut.funDebug('storeHome Dispatched for Default');
             }
           }
         }
@@ -676,6 +703,7 @@ class gv {
           timHomeStartAction = DateTime.now().millisecondsSinceEpoch;
           gv.intHomeCameraCountDown -= 1;
           storeHome.dispatch(Actions.Increment);
+          ut.funDebug('storeHome Dispatched for Count Down');
         }
       }
     }
