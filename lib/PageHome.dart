@@ -4,13 +4,13 @@ import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as ImagePlugin; // For Resize Picture
+
+// import 'package:image/image.dart' as ImagePlugin; // For Resize Picture
 import 'package:intl/intl.dart';
 import "package:threading/threading.dart";
 import 'package:video_player/video_player.dart';
 import 'signaling.dart';
 import 'package:flutter_webrtc/webrtc.dart';
-
 
 // Import Self Darts
 import 'GlobalVariables.dart';
@@ -109,16 +109,17 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
           default:
             break;
         }
-        ut.funDebug('SignalingState.value: ' + SignalingState.values.toString());
+        ut.funDebug(
+            'SignalingState.value: ' + SignalingState.values.toString());
       };
-
 
       _signaling.onPeersUpdate = ((event) {
         this.setState(() {
           gv.strWebRtcSelfID = event['self'];
           gv.lstWebRtcPeers = event['peers'];
           ut.funDebug('Self ID Updated onPeersUpdate: ' + gv.strWebRtcSelfID);
-          ut.funDebug('Peers Updated onPeersUpdate: ' + gv.lstWebRtcPeers.toString());
+          ut.funDebug(
+              'Peers Updated onPeersUpdate: ' + gv.lstWebRtcPeers.toString());
         });
       });
 
@@ -141,7 +142,6 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
       _signaling.bye();
     }
   }
-
 
   @override
   deactivate() {
@@ -365,14 +365,13 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
     }
   }
 
-
   void funInitFirstTime() async {
     // WebRTC Related
 //    if (gv.bolWebRtcShouldInit) {
-      if (gv.strWebRtcSelfID == '') {
-        initRenderers();
-        _connect();
-      }
+    if (gv.strWebRtcSelfID == '') {
+      initRenderers();
+      _connect();
+    }
 //    }
 
 //    if (gv.strHomeAction == 'TakePhoto' || gv.strHomeAction == 'TakePhotoAndClassify') {
@@ -392,8 +391,7 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             Expanded(
-              child: Image.file(
-                  File(gv.strHomeImageFileWithPath + '_01.jpg'),
+              child: Image.file(File(gv.strHomeImageFileWithPath + '_01.jpg'),
                   fit: BoxFit.cover),
             ),
           ],
@@ -401,25 +399,34 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
       ),
     );
   }
+
   Widget widTakePhoto2(context) {
     ut.funDebug('widTakePhoto2 Called');
     return Stack(
       children: <Widget>[
-        Center(child: RotatedBox(
-          quarterTurns: 3,
-          child: AspectRatio(
-            aspectRatio: ctlCamera.value.aspectRatio,
-            child: CameraPreview(ctlCamera),
+        Center(
+          child: RotatedBox(
+            quarterTurns: 3,
+            child: AspectRatio(
+              aspectRatio: ctlCamera.value.aspectRatio,
+              child: CameraPreview(ctlCamera),
+            ),
           ),
-        ),),
-        Center(child: Text(
-            (gv.intHomeCameraCountDown > 0) ? gv.intHomeCameraCountDown.toString() : '',
-            style: TextStyle(fontSize: sv.dblDefaultFontSize * 3, color: Colors.red, fontWeight: FontWeight.bold)))
+        ),
+        Center(
+            child: Text(
+                (gv.intHomeCameraCountDown > 0)
+                    ? gv.intHomeCameraCountDown.toString()
+                    : '',
+                style: TextStyle(
+                    fontSize: sv.dblDefaultFontSize * 12,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold)))
       ],
     );
   }
+
   Widget Body() {
-    ut.funDebug('Page Home Body 1');
     switch (gv.strHomeAction) {
       case 'ShowImage':
         gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
@@ -439,29 +446,20 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
         );
         break;
       case 'TakePhoto':
-        ut.funDebug('Page Home Body 2');
         if (gv.bolHomeTakePhotoStart) {
 //          funInitFirstTime();
-          ut.funDebug('Page Home Body 3');
           gv.bolHomeTakePhotoStart = false;
           funCameraStart();
-          ut.funDebug('Page Home Body 4');
           setState(() {});
-          ut.funDebug('Page Home Body 5');
         }
-        ut.funDebug('Page Home Body 6');
         gv.timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
         if (gv.bolHomeTakePhotoEnd) {
-          ut.funDebug('Page Home Body 7');
           return widTakePhoto1(context);
         } else {
-          ut.funDebug('Page Home Body 8');
           if (!ctlCamera.value.isInitialized) {
-            ut.funDebug('Page Home Body 9');
             ut.funDebug('Before Return Container() in TakePhoto');
             return Container();
           }
-          ut.funDebug('Page Home Body 10');
           return widTakePhoto2(context);
         }
         break;

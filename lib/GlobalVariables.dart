@@ -676,7 +676,7 @@ class gv {
         if (socket != null) {
           ut.funDebug('Sending HB...' + DateTime.now().toString());
           ut.funDebug('WebRTC Self ID: ' + strWebRtcSelfID);
-          socket.emit('HB', [strLoginID]);
+          socket.emit('HB', [strLoginID, strWebRtcSelfID]);
           timLastHBSent = DateTime.now().millisecondsSinceEpoch;
         }
       }
