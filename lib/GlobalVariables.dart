@@ -274,7 +274,7 @@ class gv {
   static bool bolUploadingToSocketIOServer = false;
 
   // WebRTC Related
-  static String strWebRtcIP = '192.168.123.5';
+  static String strWebRtcIP = 'www.zephan.top';
   static String strWebRtcSelfID = '';
   static bool bolWebRtcInCalling = false;
   static String strWebRtcDisplayName = 'BigAIBot';
@@ -461,38 +461,7 @@ class gv {
     });
 
     socket.on('HBReturn', (data) async {
-      String strTempServerVersion = "";
-      String strTempDownloadAppURL = "";
-      try {
-        strTempServerVersion = data[0];
-        strTempDownloadAppURL = data[1];
-
-        if (strTempServerVersion != strServerVersion) {
-          strServerVersion = strTempServerVersion;
-          await setString('ServerVersion', strServerVersion);
-        }
-        if (strTempDownloadAppURL != strAppDownloadURL) {
-          strAppDownloadURL = strTempDownloadAppURL;
-          await setString('AppDownloadURL', strAppDownloadURL);
-          if (gstrCurPage == 'UpgradeApp') {
-            storeMain.dispatch(Actions.Increment);
-            return;
-          }
-        }
-        if (gstrCurPage == 'SettingsMain' && strServerVersion != strVersion) {
-          // Goto Page UpgradeApp
-          gstrLastPage = gstrCurPage;
-          gstrCurPage = 'UpgradeApp';
-          storeMain.dispatch(Actions.Increment);
-        }
-      } catch (err) {
-        ut.funDebug('Unable to go to UpgradeApp in HBReturn Error: ' + err.toString());
-      }
-      if (bolUploadingToSocketIOServer) {
-        intMainThreadTimer = intMainThreadTimerDefault * 2;
-      } else {
-        intMainThreadTimer = intMainThreadTimerDefault;
-      }
+      timLastHbReceive = DateTime.now().millisecondsSinceEpoch;
     });
 
 
@@ -666,6 +635,8 @@ class gv {
   static int timHomeStartAction = DateTime.now().millisecondsSinceEpoch;
   static int timHomeFinishAction = DateTime.now().millisecondsSinceEpoch;
   static int intHomeActionWaitToDefault = 10000;
+  static int intHBFinalTimeout = 30000;
+  static int timLastHbReceive = DateTime.now().millisecondsSinceEpoch;
   static void funTimerHeartBeat() async {
     while (true) {
       // Sleep for 1 second
@@ -681,7 +652,12 @@ class gv {
         }
       }
 
-      // Check should show eye
+      if (DateTime.now().millisecondsSinceEpoch - timLastHbReceive > intHBFinalTimeout) {
+        gbolSIOConnected = false;
+        socket.connect();
+      }
+
+        // Check should show eye
       try {
         if (bolHomeStartAction) {
           if (DateTime.now().millisecondsSinceEpoch - timHomeFinishAction > intHomeActionWaitToDefault) {
