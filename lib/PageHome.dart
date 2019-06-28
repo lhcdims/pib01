@@ -511,7 +511,7 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Expanded(
-                  child: Image.asset('images/eye01.gif', fit: BoxFit.cover),
+                  child: Image.asset('images/eye02.gif', fit: BoxFit.cover),
                 ),
               ],
             ),
