@@ -12,6 +12,9 @@ import 'package:video_player/video_player.dart';
 import 'signaling.dart';
 import 'package:flutter_webrtc/webrtc.dart';
 
+import 'flutter_incall_manager.dart';
+import 'incall.dart';
+
 // Import Self Darts
 import 'GlobalVariables.dart';
 import 'LangStrings.dart';
@@ -59,11 +62,19 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
 
   int intCountState = 0;
 
+  // flutter incall manager
+  IncallManager incall = new IncallManager();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     gv.bolHomeVideoTimerStart = false;
+
+    //incall.checkRecordPermission();
+    //incall.requestRecordPermission();
+    incall.start({'media':'audio', 'auto': true, 'ringback': ''});
+    incall.setForceSpeakerphoneOn(true);
 
     intCountState += 1;
     ut.funDebug('***************************************** intCountState: ' +
