@@ -74,7 +74,7 @@ class _ClsHomeState extends State<ClsHome> with WidgetsBindingObserver {
     //incall.checkRecordPermission();
     //incall.requestRecordPermission();
     incall.start({'media':'audio', 'auto': true, 'ringback': ''});
-    incall.setForceSpeakerphoneOn(true);
+    incall.setForceSpeakerphoneOn(false);
 
     intCountState += 1;
     ut.funDebug('***************************************** intCountState: ' +
